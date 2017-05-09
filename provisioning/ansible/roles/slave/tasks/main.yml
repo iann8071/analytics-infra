@@ -1,0 +1,36 @@
+- name: init repositry setting
+  shell: |
+    echo '{"insecure-registries":["{{ groups['config-mgmt'][0] }}:5000"] }' > /etc/docker/daemon.json
+    systemctl restart docker
+  tags: init-docker
+
+- name: join network
+  shell: docker swarm join --token {{ hostvars[groups['spark-master'][0]]['token']['stdout'] }} {{ groups['spark-master'][0] }}:2377
+  ignore_errors: yes
+  tags: init-spark
+
+- name: get slave id
+  shell: ifconfig eth0 | grep 'inet ' | awk '{print $2}'
+  register: slave_id
+  tags: init-spark, deploy-spark
+
+- name: run slave image
+  shell: docker run --privileged -d --name slave-{{ slave_id['stdout'] }} --net spark-network -it {{ groups['config-mgmt'][0] }}:5000/analytics/spark:latest '/sbin/init'
+  ignore_errors: yes
+  tags: init-spark
+
+- name: get slave ip
+  shell: docker exec slave-{{ slave_id['stdout'] }} bash -l -c 'cat /etc/hosts | grep 10.0.9' | awk '{print $2}' > slave_ip
+  tags: init-spark
+
+- name: get slave ip
+  fetch: src=slave_ip dest=/tmp
+  tags: init-spark
+
+- name: cp resources from config-mgmt
+  copy: src=/tmp/HorseRace dest=/tmp
+  tags: deploy-spark
+
+- name: cp resources from host to docker
+  shell: docker cp /tmp/HorseRace slave-{{ slave_id['stdout'] }}:/tmp
+  tags: deploy-spark

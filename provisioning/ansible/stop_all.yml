@@ -1,0 +1,19 @@
+- hosts: mysql
+  tasks:
+    name: stop mysql
+    shell: shutdown now
+
+- hosts: spark-slave
+  tasks:
+    name: stop all slaves
+    shell: shutdown now
+
+- hosts: spark-master
+  tasks:
+    name: stop master
+    shell: shutdown now
+
+- hosts: config-mgmt
+  tasks:
+    name: stop config management
+    shell: shutdown now

@@ -1,0 +1,26 @@
+- name: init repository
+  shell: |
+    echo '{"insecure-registries":["{{ groups['config-mgmt'][0] }}:5000"] }' > /etc/docker/daemon.json
+    systemctl restart docker
+    docker run -d -p 5000:5000 -v /var/opt:/var/lib/registry registry:2.3.0
+  tags: init-docker
+
+- name: init spark image
+  shell: |
+    docker pull docker.io/sequenceiq/spark
+    docker tag docker.io/sequenceiq/spark:latest localhost:5000/analytics/docker.io/sequenceiq/spark:latest
+    docker push localhost:5000/analytics/docker.io/sequenceiq/spark:latest
+  tags: old
+
+- name: init mysql image
+  shell: |
+    docker pull mysql
+    docker tag mysql:latest localhost:5000/analytics/mysql:latest
+    docker push localhost:5000/analytics/mysql:latest
+  tags: old
+
+- name: start repository
+  shell: docker run -d -p 5000:5000 -v /var/opt:/var/lib/registry registry:2.3.0
+  ignore_errors: yes
+  tags: start-docker
+

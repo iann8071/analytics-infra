@@ -1,0 +1,15 @@
+- name: init repositry setting
+  shell: |
+    echo '{"insecure-registries":["{{ groups['config-mgmt'][0] }}:5000"] }' > /etc/docker/daemon.json
+    systemctl restart docker
+  tags: init-docker
+
+- name: join network
+  shell: docker swarm join --token {{ hostvars[groups['spark-master'][0]]['token']['stdout'] }} {{ groups['spark-master'][0] }}:2377
+  ignore_errors: yes
+  tags: init-spark
+
+- name: run mysql image
+  shell: docker run --name mysql --net spark-network -e MYSQL_ROOT_PASSWORD=2wsxCDE# -d -p 3306:3306 {{ groups['config-mgmt'][0] }}:5000/analytics/mysql:latest
+  ignore_errors: yes
+  tags: init-spark

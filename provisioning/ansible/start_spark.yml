@@ -1,0 +1,15 @@
+- hosts: spark-master
+  roles:
+    - role: master
+
+- hosts: mysql
+  roles:
+    - role: mysql
+
+- hosts: spark-slave
+  roles:
+    - role: slave
+
+- hosts: config-mgmt
+  roles:
+    - role: config_mgmt

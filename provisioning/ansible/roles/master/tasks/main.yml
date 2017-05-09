@@ -1,0 +1,52 @@
+- name: init repositry setting
+  shell: |
+    echo '{"insecure-registries":["{{ groups['config-mgmt'][0] }}:5000"] }' > /etc/docker/daemon.json
+    systemctl restart docker
+  tags: init-docker
+
+- name: create network
+  shell: |
+    docker swarm init --advertise-addr {{ groups['spark-master'][0] }}
+    docker network create --driver overlay --subnet 10.0.9.0/24 spark-network --attachable
+  tags: init-docker
+
+- name: get worker token
+  shell: docker swarm join-token -q worker
+  register: token
+  tags: init-spark
+
+- name: run master image
+  shell: docker run --privileged -d --name master --net spark-network -it {{ groups['config-mgmt'][0] }}:5000/analytics/spark:latest '/sbin/init'
+  ignore_errors: yes
+  tags: init-spark
+
+- name: clear slaves
+  shell: rm -f slaves
+  tags: start-spark
+
+- name: copy slave ips
+  copy: src=/tmp/{{ item }}/slave_ip dest=/root/slave_ip.{{ item }}
+  with_items: "{{ groups['spark-slave'] }}"
+  tags: start-spark
+
+- name: create slaves
+  shell: cat "slave_ip.{{ item }}" >> /root/slaves
+  with_items: "{{ groups['spark-slave'] }}"
+  tags: start-spark
+
+- name: cp slaves
+  shell: docker cp slaves master{{ colon }}/usr/local/spark/conf/slaves
+  tags: start-spark
+
+- name: start spark
+  shell: docker exec master bash -l -c '/usr/local/spark/sbin/start-all.sh'
+  ignore_errors: yes
+  tags: start-spark
+
+- name: cp resources from config-mgmt
+  copy: src=/tmp/HorseRace dest=/tmp
+  tags: deploy-spark
+
+- name: cp resources from host to docker
+  shell: docker cp /tmp/HorseRace master:/tmp
+  tags: deploy-spark

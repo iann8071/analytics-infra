@@ -1,0 +1,7 @@
+- hosts: spark-master
+  roles:
+    - role : master
+
+- hosts: spark-slave
+  roles:
+    - role : slave
